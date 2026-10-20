@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MEETING.PROTOCOL_v1.0 • terminal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #06030b;
+            --term-purple: #c084fc;
+            --term-glow: #a855f7;
+            --term-dim: rgba(192, 132, 252, 0.45);
+            --term-border: rgba(168, 85, 247, 0.35);
+            --term-bg: rgba(12, 6, 22, 0.75);
+        }
+
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Fira Code', monospace;
+        }
+
+        body { 
+            background: var(--bg-color); 
+            color: var(--term-purple); 
+            min-height: 100vh; 
+            width: 100vw;
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* CRT Ефект сканліній (як у референсі, але у фіолетових тонах) */
+        body::after {
+            content: " ";
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 10, 26, 0) 50%, rgba(0, 0, 0, 0.45) 50%), 
+                        linear-gradient(90deg, rgba(168, 85, 247, 0.03), rgba(0, 0, 0, 0.01), rgba(168, 85, 247, 0.03));
+            background-size: 100% 4px, 3px 100%;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        /* Термінальне вікно */
+        .terminal-box {
+            width: 100%;
+            max-width: 520px;
+            background: var(--term-bg);
+            border: 1px solid var(--term-border);
+            padding: 2.2rem;
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 0 35px rgba(168, 85, 247, 0.15), inset 0 0 15px rgba(168, 85, 247, 0.05);
+        }
+
+        /* Верхній колонтитул терміналу */
+        .terminal-header {
+            border-bottom: 1px dashed var(--term-border);
+            padding-bottom: 12px;
+            margin-bottom: 25px;
+        }
+
+        .sys-log {
+            font-size: 11px;
+            color: var(--term-dim);
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .main-title {
+            font-size: 16px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-weight: 700;
+            text-shadow: 0 0 8px var(--term-glow);
+            display: flex;
+            align-items: center;
+        }
+
+        /* Блимаючий курсор */
+        .cursor {
+            display: inline-block;
+            width: 9px;
+            height: 16px;
+            background: var(--term-purple);
+            animation: blink 1s infinite;
+            margin-left: 8px;
+            box-shadow: 0 0 8px var(--term-glow);
+        }
+
+        @keyframes blink { 
+            0%, 100% { opacity: 1; } 
+            50% { opacity: 0; } 
+        }
+
+        /* Поля форми */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 11px;
+            color: var(--term-dim);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+            background: rgba(168, 85, 247, 0.03);
+            border: 1px solid var(--term-border);
+            transition: all 0.3s ease;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--term-purple);
+            box-shadow: 0 0 12px rgba(192, 132, 252, 0.35);
+            background: rgba(168, 85, 247, 0.08);
+        }
+
+        .prompt-symbol {
+            padding-left: 12px;
+            color: var(--term-purple);
+            font-size: 13px;
+            user-select: none;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 13px;
+            outline: none;
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: rgba(192, 132, 252, 0.25);
+            font-size: 12px;
+        }
+
+        textarea {
+            height: 90px;
+            resize: none;
+        }
+
+        /* Кнопка відправки */
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 10px;
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid var(--term-purple);
+            color: var(--term-purple);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+        }
+
+        button:hover {
+            background: var(--term-purple);
+            color: #06030b;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
+        }
+
+        button:active {
+            transform: scale(0.99);
+        }
+
+        button:disabled {
+            border-color: var(--term-dim);
+            color: var(--term-dim);
+            cursor: not-allowed;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        /* Статус виконання */
+        #status {
+            margin-top: 15px;
+            font-size: 12px;
+            min-height: 18px;
+            text-align: left;
+            word-break: break-word;
+        }
+
+        .success { 
+            color: #4ade80; 
+            text-shadow: 0 0 6px rgba(74, 222, 128, 0.5); 
+        }
+
+        .error { 
+            color: #f87171; 
+            text-shadow: 0 0 6px rgba(248, 113, 113, 0.5); 
+        }
+
+        @media (max-width: 480px) {
+            .terminal-box {
+                padding: 1.5rem;
+            }
+            .main-title {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="terminal-box">
+    <div class="terminal-header">
+        <div class="sys-log">[SYS_INITIALIZED]: Core connection stable</div>
+        <div class="sys-log">[PROTOCOL]: meeting.SCHEDULE_v1.0</div>
+        <div class="main-title">
+            &gt; ЗАПИСАТИСЯ НА ЗУСТРІЧ<span class="cursor"></span>
+        </div>
+    </div>
+
+    <form id="my-form" action="https://formspree.io/f/xppzjbkl" method="POST">
+        <div class="form-group">
+            <label>[ USER_NAME ]</label>
+            <div class="input-wrapper">
+                <span class="prompt-symbol">&gt;</span>
+                <input type="text" name="name" placeholder="Ваше ім'я і прізвище" required autocomplete="off">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>[ CONTACT_DATA ]</label>
+            <div class="input-wrapper">
+                <span class="prompt-symbol">&gt;</span>
+                <input type="text" name="contact" placeholder="Телеграм @юзернейм або телефон" required autocomplete="off">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>[ DATE_&_TIME ]</label>
+            <div class="input-wrapper">
+                <span class="prompt-symbol">&gt;</span>
+                <input type="text" name="datetime" placeholder="Наприклад: 01.01 об 12:00" required autocomplete="off">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>[ PURPOSE_PAYLOAD ]</label>
+            <div class="input-wrapper" style="align-items: flex-start;">
+                <span class="prompt-symbol" style="padding-top: 12px;">&gt;</span>
+                <textarea name="purpose" placeholder="Опишіть коротко мету зустрічі..." required></textarea>
+            </div>
+        </div>
+        
+        <button id="my-form-button">[ EXECUTE_TRANSMISSION ]</button>
+        <div id="status"></div>
+    </form>
+</div>
+
+<script>
+    var form = document.getElementById("my-form");
+    
+    async function handleSubmit(event) {
+      event.preventDefault();
+      var status = document.getElementById("status");
+      var data = new FormData(event.target);
+      var button = document.getElementById("my-form-button");
+
+      button.disabled = true;
+      button.innerText = "[ TRANSMITTING_DATA... ]";
+      status.className = "";
+      status.innerText = "> Обробка запиту...";
+
+      fetch(event.target.action, {
+        method: form.method,
+        body: data,
+        headers: {
+            'Accept': 'application/json'
+        }
+      }).then(response => {
+        if (response.ok) {
+          status.innerHTML = "&gt; [SUCCESS]: Запит надіслано успішно. Очікуйте відповіді.";
+          status.className = "success";
+          form.reset();
+        } else {
+          response.json().then(data => {
+            if (Object.hasOwn(data, 'errors')) {
+              status.innerHTML = "&gt; [ERROR]: " + data["errors"].map(error => error["message"]).join(", ");
+            } else {
+              status.innerHTML = "&gt; [ERROR]: Помилка під час відправки даних.";
+            }
+            status.className = "error";
+          })
+        }
+      }).catch(error => {
+        status.innerHTML = "&gt; [NET_ERROR]: Помилка зв'язку з сервером.";
+        status.className = "error";
+      }).finally(() => {
+        button.disabled = false;
+        button.innerText = "[ EXECUTE_TRANSMISSION ]";
+      });
+    }
+    
+    form.addEventListener("submit", handleSubmit);
+</script>
+
+</body>
+</html>
